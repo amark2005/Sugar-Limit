@@ -1,43 +1,63 @@
-#include <iostream>
-#include <string>
+#include <raylib.h>
+#define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
-struct Body{
-  float height=0;
-  float weight=0;
-  float age=0;
-  std::string gender="";
-  bool ismale=true;
-  Body(){
-    std::cout<<"Enter Age: ";
-    std::cin>>age;
-    std::cout<<"Enter Height: ";
-    std::cin>>height;
-    std::cout<<"Enter Weight: ";
-    std::cin>>weight;
-    std::cout<<"Are You a Male or Female(type m for male and f for female): ";
-    std::cin>>gender;
-    if(gender=="f")ismale=false;
-  }
-  float const BMR(){
-    float bmr=0;
-    if(ismale)bmr=(10*weight)+(6.25*height)-(5*age)+5;
-    else bmr=(10*weight)+(6.25*height)-(5*age)-161;
-    return bmr;
-  }
-  float const TDEE(){
-    return BMR()*1.4;   //TODO: Need to add activity levels
-  }
-  float const dailycalorie(){return TDEE();}
-  float const sugarlimit(){return (dailycalorie()*0.05)/4;}
-  float const sugarlimit_teaspoon(){return sugarlimit()/4;}
-};
+struct Body {
+    int age = 0;
+    float height=0;
+    float weight = 0;
+    
+    char Hbuffer[16] = "";
+    char Wbuffer[16] = "";
+    
+    int genderActive = 0; // 0 for Male, 1 for Female
+    bool ageEdit = false;
+    bool heightEdit = false;
+    bool weightEdit = false;
 
-int main(){
-  Body amar;
-  std::cout<<"Daily Calorie: "<<amar.dailycalorie()<<"\n";
-  std::cout<<"Daily Sugar Limit: "<<amar.sugarlimit()<<"\n";
-  std::cout<<"Daily Sugar Limit in Teaspoons: "<<amar.sugarlimit_teaspoon()<<"\n";
-  return 0;
-  
+    float GetBMR() const {
+        if (age <= 0 || height <= 0 || weight <= 0) return 0.0f;
+        if (genderActive == 0) 
+            return (10.0f * weight) + (6.25f * height) - (5.0f * age) + 5.0f;
+        return (10.0f * weight) + (6.25f * height) - (5.0f * age) - 161.0f;
+    }
+
+    float GetTDEE() const { return GetBMR() * 1.4f; }
+    float GetSugarGrams() const { return (GetTDEE() * 0.05f) / 4.0f; }
+    float GetSugarTSP() const { return GetSugarGrams() / 4.0f; }
+};
+__attribute__((force_align_arg_pointer))
+int main() {
+    Body amar;
+
+    snprintf(amar.Hbuffer, sizeof(amar.Hbuffer), "%.2f", amar.height);
+    snprintf(amar.Wbuffer, sizeof(amar.Wbuffer), "%.2f", amar.weight);
+
+    InitWindow(1280, 720, "Sugar Limit Calculator");
+    SetTargetFPS(60);
+
+    while (!WindowShouldClose()) {
+        if (IsKeyPressed(KEY_Q)) break;
+
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        DrawText("Sugar Limit", 300, 100, 30, WHITE);
+
+        if (GuiValueBox({100, 200, 100, 60}, "Age", &amar.age, 0, 120, amar.ageEdit)) amar.ageEdit = !amar.ageEdit;
+        if (GuiValueBoxFloat({100, 300, 100, 60}, "Height (cm)", amar.Hbuffer, &amar.height, amar.heightEdit)) amar.heightEdit = !amar.heightEdit;
+        if (GuiValueBoxFloat({100, 400, 100, 60}, "Weight (kg)", amar.Wbuffer, &amar.weight, amar.weightEdit)) amar.weightEdit = !amar.weightEdit;
+        
+        GuiToggleGroup({100, 500, 100, 60}, "MALE;FEMALE", &amar.genderActive);
+
+        float tdee = amar.GetTDEE();
+        DrawText(TextFormat("Daily Calorie: %.2f cal", tdee), 400, 350, 30, RED);
+        DrawText(TextFormat("Sugar Limit: %.2f grams", amar.GetSugarGrams()), 400, 380, 30, YELLOW);
+        DrawText(TextFormat("Sugar Limit: %.2f tsp", amar.GetSugarTSP()), 400, 420, 20, GREEN);
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+    return 0;
 }
